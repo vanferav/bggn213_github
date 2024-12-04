@@ -1,0 +1,178 @@
+---
+title: "Class 07: Machine Learning 1"
+author: "Vanesa Fernandez"
+format: pdf
+---
+
+Before we get into clustering methods let's make some sample data to cluster where we know what the answer should be.
+
+To help with this I will use the 'rnorm()' fuction.
+
+```{r}
+hist( rnorm(150000, mean= 3))
+```
+
+
+```{r}
+hist( rnorm(150000, mean=c(-3,3 )))
+```
+
+```{r}
+n=1000
+hist( c(rnorm(n, mean=3), rnorm(n, mean=-3) ))
+```
+
+```{r}
+n=30
+x <- c(rnorm(n, mean=3), rnorm(n, mean=-3) )
+y <- rev(x)
+
+z <- cbind(x,y)
+plot(z)
+```
+
+## K-means clustering 
+## works well with big datasets
+
+The function in base R for k-means clustering is called `kmeans()`.
+            
+```{r}
+km <- kmeans(z, centers =2)
+```
+
+```{r}
+km$centers
+```
+
+> Q. Print out the cluster membership vector (i.e. our main answer)
+
+```{r}
+km$cluster
+```
+
+```{r}
+plot (z, col= c("red", "blue"))
+```
+```{r}
+plot(x, col=c(125,200) )
+```
+
+Plot with clustering result and add cluster centers:
+```{r}
+plot(z, col=km$cluster)
+points(km$centers, col="blue", pch=15, cex=2)
+```
+
+> Q. Can you cluster our data in `z` into four clusters?
+
+## Kmeans would fit the data but not the accurate plot 
+
+```{r}
+km4 <- kmeans(z, centers = 4)
+plot(z, col=km4$cluster)
+points(km$centers, col="blue", pch=15, cex=2)
+```
+
+## Hierarchical Clustering 
+b-up or b-down clusters
+
+The main function for hierarchical clustering in base R is called `hclust()`
+
+Unlike `kmeans()` I can not just pass in my data as input I first need a distance matrix from my data.
+
+```{r}
+d <- dist(z)
+hc <- hclust(d)
+hc
+```
+
+There is a specific hclust plot() method...
+
+##the horizontal line = how close/similar the clusters are.
+## the red line = height 
+
+```{r}
+plot(hc)
+abline(h=10, col="red")
+```
+
+To get my clustering result (i.e. the membership vector) I can "cut" my tree at a given height. To do this I will use the `cutree()`
+
+```{r}
+grps <- cutree(hc, h=10)
+grps
+```
+
+# Principal Component Analysis
+
+Principal component analysis (PCA) is a well established "multivariate statistical technique" used to reduce the dimensionality of a complex data set to a more manageable number (typically 2D or 3D). This method is particularly useful for highlighting strong patterns and relationships in large datasets (i.e. revealing major similarities and differences) that are otherwise hard to visualize. 
+
+##PCA of UK food data
+```{r}
+url <- "https://tinyurl.com/UK-foods"
+x <- read.csv(url, row.names=1)
+
+```
+
+```{r}
+barplot(as.matrix(x), beside=T, col=rainbow(nrow(x)))
+```
+
+
+```{r}
+barplot(as.matrix(x), beside=F, col=rainbow(nrow(x)))
+```
+
+```{r}
+pairs(x, col=rainbow(10), pch=16)
+```
+
+## PCA to the rescue
+The main function to do PCA in base R is called `prcomp()`. `center` and `scale` important arguments
+
+Note that I need to take the transpose of this particular data as that is what the `prcomp()` help page was asking for
+
+```{r}
+pca <- prcomp(t(x))
+summary(pca)
+```
+
+Let's see what is inside our result object `pca` that we just calculated:
+
+```{r}
+attributes(pca)
+```
+
+```{r}
+pca$x
+```
+
+To make our main result figure, called a "PC plot" (or "score plot", "ordination plot" or "PC1 VS PC2 plot").
+
+```{r}
+plot(pca$x[,1], pca$x[,2], col=c("black", "red", "blue", "darkgreen"),
+pch=16, xlab="PC1 (67.4%)", ylab="PC2 (29%)")
+```
+
+To make our main result figure, called 
+
+```{r}
+plot(pca$x[,1], pca$x[,2],
+col=c("black", "red", "blue", "darkgreen"), pch=16, xlab= "PC1 (67.4%)", ylab="PC2 (29%)")
+
+abline(h=0, col="gray", lty=2)
+abline(v=0, col="gray", lty=2)
+```
+
+
+
+## Variable Loadings plot
+
+Can give us insight on how the original variables (in this case the foods) contribute to our new PC axis.
+
+```{r}
+par(mar=c(10, 3, 0.35, 0))
+barplot( pca$rotation[,1], las=2 )
+```
+
+

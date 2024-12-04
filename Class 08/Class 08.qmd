@@ -1,0 +1,77 @@
+---
+title: "Class 08: PCA Mini Project"
+author: "Vanesa Fernandez"
+format: html
+---
+
+Side
+
+```{r}
+head(mtcars)
+```
+
+Let's look at the mean value of every column:
+
+```{r}
+apply(mtcars, 2, mean)
+```
+
+Let's look at "spread" via `sd()`
+
+```{r}
+apply(mtcars, 2, sd)
+```
+
+```{r}
+apply(mtcars, 1, mean)
+```
+
+```{r}
+pca <- prcomp(mtcars)
+biplot (pca)
+```
+
+Let's try scalling the data"
+
+```{r}
+mtscale <- scale(mtcars)
+head(mtscale)
+```
+
+What is the mean of each "dimension"/column
+```{r}
+round(apply(mtscale, 2, mean), 3)
+```
+```{r}
+round(apply(mtscale, 2, sd), 3)
+```
+
+Let's plot `mpg` vs `disp` for both mtcars and after the scalled data in `mtscale`
+
+```{r}
+library(ggplot2)
+
+ggplot(mtcars) + 
+  aes(mpg,disp) +
+  geom_point()
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(mtscale) + 
+  aes(mpg,disp) +
+  geom_point()
+```
+
+```{r}
+pca2 <- prcomp(mtscale)
+biplot (pca2)
+```
+
+## Breast Cancer FNA data 
+
+```{r}
+
+```
+
