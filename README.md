@@ -1,2 +1,2 @@
 # bggn213_github
-My class work from BGG213
+My class work from BGG213 at UCSD.
