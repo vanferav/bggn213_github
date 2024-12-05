@@ -1,0 +1,184 @@
+---
+title: "Class 05: Data Viz witth ggplot"
+author: "Vanesa Fernandez"
+format: pdf
+---
+
+R has lot's of ways to make figures and graphs in particular.
+One that comes with R out of the box is called **"base" R** - the 'plot()' function 
+
+```{r}
+plot(cars)
+```
+
+A very popular package in this area is called *ggplot2**
+
+Before I can use any ad-on like this I must install it whit the `install.packages("ggplot2")` command/function
+
+Then to use the package I need to load it with a `library(ggplot2)`) call
+
+```{r}
+library(ggplot2)
+ggplot(cars) + 
+  aes(x=speed, y=dist) + 
+  geom_point()
+```
+
+For "simple" plots like this one base R code will be much shorter than ggplot code. 
+
+Let's fit a model and show it on my plot:
+```{r}
+ggplot(cars) + 
+  aes(x=speed, y=dist) + 
+  geom_point() + 
+  geom_line() +
+  geom_smooth()
+```
+
+Every ggplot has at least 3 layers
+
+1st- **data** (data.frame with the numbers or stuff you want a plot)
+2nd- **aes**thetics (mapping of your columns to your plot: position, size, line type/width, color, shape)
+3rd- **geoms** (lots of these, these are `geompoint()`, `geom_line()`, `geom_col()`)
+
+```{r}
+head(mtcars)
+```
+
+Make the ggplot of the `mtcars` data set using `mpg` vs `disp`
+and set the size of the points to the `hp`.
+and set the color to `am`
+
+```{r}
+ggplot(mtcars) + 
+  aes(x=mpg, y=disp) + 
+  geom_point(aes(size=hp, col=am)) +
+  geom_line()
+```
+
+
+Now color all pts 
+```{r}
+ggplot(mtcars) + 
+  aes(x=mpg, y=disp, size=hp, col=am) + 
+  geom_point() +
+  facet_wrap(~am)
+```
+
+```{r}
+library(ggrepel)
+
+ggplot(mtcars) + 
+  aes(x=mpg, y=disp, col=am, label=rownames(mtcars)) +
+  geom_point() +
+  facet_wrap(~am) +
+  geom_text_repel()
+```
+
+Going Further exercises
+```{r}
+library(gapminder)
+```
+
+```{r}
+library(dplyr)
+
+gapminder_2007 <- gapminder %>% filter(year==2007)
+```
+
+```{r}
+ggplot(gapminder_2007) +
+  aes(x=gdpPercap, y=lifeExp) +
+  geom_point(alpha=0.5)
+```
+Adding more variables to `aes()`
+```{r}
+ggplot(gapminder_2007) +
+  aes(x=gdpPercap, y=lifeExp, color=continent, size=pop) +
+  geom_point(alpha=0.5)
+```
+Color the points by the numeric variable population pop
+```{r}
+ggplot(gapminder_2007) + 
+  aes(x = gdpPercap, y = lifeExp, color = pop) +
+  geom_point(alpha=0.8)
+```
+Adjusting Point size
+```{r}
+ggplot(gapminder_2007) + 
+  aes(x = gdpPercap, y = lifeExp, size = pop) +
+  geom_point(alpha=0.5)
+```
+Scaling information
+```{r}
+ggplot(gapminder_2007) + 
+  geom_point(aes(x = gdpPercap, y = lifeExp,
+                 size = pop), alpha=0.5) + 
+  scale_size_area(max_size = 10)
+```
+1957 plot
+```{r}
+gapminder_1957 <- gapminder %>% filter(year==1957)
+
+ggplot(gapminder_1957) + 
+  aes(x = gdpPercap, y = lifeExp, color=continent,
+                 size = pop) +
+  geom_point(alpha=0.7) + 
+  scale_size_area(max_size = 10) 
+```
+1957 and 2007  `facet_wrap()` plot
+```{r}
+gapminder_1957 <- gapminder %>% filter(year==1957 | year==2007)
+
+ggplot(gapminder_1957) + 
+  geom_point(aes(x = gdpPercap, y = lifeExp, color=continent,
+                 size = pop), alpha=0.7) + 
+  scale_size_area(max_size = 10) +
+  facet_wrap(~year)
+```
+
+Gene expression 
+```{r}
+url <- "https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt"
+genes <- read.delim(url)
+head(genes)
+```
+
+```{r}
+nrow(genes)
+```
+
+There are `r nrow(genes)` genes in this dataset.
+
+```{r}
+unique(genes$State)
+```
+The `table()` function is very useful to tell me how many entries of each type there are. 
+
+```{r}
+table(genes$State) / nrow(genes)
+```
+
+The functions `nrow()`, `ncol()`, and `table()` are ones I want you to know. 
+
+> KEY POINTS
+Saving plots with **ggsave**
+Different plot "types" with different `geoms_**()`
+Faceting with `facet_wrap()`
+Multi-plot layout with the **patchwork** package
+
+```{r}
+#install.packages("patchwork")
+library(patchwork)
+```
+
+
+```{r}
+ggplot(mtcars) +
+  aes(mpg, disp) +
+  geom_point()
+  
+ggsave("myplot.pdf")
+```
+
+
