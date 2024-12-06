@@ -1,0 +1,317 @@
+---
+title: "Class13-Transcriptomics and the analysis of RNA-Seq data"
+author: "Vanesa Fernandez"
+format: pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+```{r}
+##install.packages("BiocManager")
+```
+
+```{r}
+##For this class, we'll also need DESeq2 
+##BiocManager::install("DESeq2")
+
+## Note: say no to prompts to install from source or update
+```
+
+```{r}
+##library(DESeq2)
+```
+
+Today we are working with bulk analysis - cool!!!
+
+Use "Bioconductor setup" Lab sheet from the class website. 
+
+Where airway smooth muscle cells were treated with dexamethasone, a synthetic glucocorticoid steroid with anti-inflammatory effects (Himes et al. 2014).
+
+## Data import
+```{r}
+# Complete the missing code
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <- read.csv("airway_metadata.csv")
+```
+
+Let's have a wee peak 
+```{r}
+head(counts)
+```
+
+> Q1. How many transcripts/genes in 'counts' object?
+
+There are `r nrow(counts)` genes in this dataset
+
+> Q2. How many "control" samples?
+
+```{r}
+sum(metadata$dex == "control")
+```
+```{r}
+table(metadata$dex)
+```
+
+I want to compare "treated" vs. "control"
+
+1. let's split the "counts" by `control.counts` vs. `treated.counts`
+
+```{r}
+##metadata
+```
+
+```{r}
+control.inds <- metadata$dex == "control"
+##get the controls and extract its corresponding column 
+```
+Syntax with df[rows, cols]
+```{r}
+control.counts <- counts[,control.inds]
+```
+
+Simplifying to one line
+```{r}
+treated.counts <- counts[,metadata$dex == "treated"]
+```
+
+Another way
+```{r}
+control.inds
+!control.inds
+metadata$dex != "control"
+metadata$dex != "treated"
+```
+
+2. Let's calculate the mean count per gene for "control" and "treated" - then we can compare them. Naming as `control.mean` and `treated.mean`
+
+
+I can use the `apply()` function to apply `mean()` over the rows or columns of any data.frame. We also  want a plot to see levels of expression between the groups.
+
+```{r}
+control.mean <- apply(control.counts, 1, mean)
+treated.mean <- apply(treated.counts, 1, mean)
+```
+
+Put these together for easy book-keeping 
+
+```{r}
+meancounts <- data.frame(control.mean, treated.mean)
+##head(meancounts) to visulize data
+plot(meancounts) 
+
+```
+
+we cannot make interpretatios out of this plot. Thus, we need to transform the data to log transformation.
+```{r}
+meancounts <- data.frame(control.mean, treated.mean)
+plot(meancounts, log= "xy") 
+```
+
+We most often use log2 transforms here because it makes the math easier for my brain :). Log2 of 0 means no chance of an event happening. 
+examples:
+
+```{r}
+log2(20/10)
+```
+```{r}
+log2(10/10)
+```
+Log2 = 2, this a rule of tumb to start looking at the data at bigger scale. Let's say, we want to see the forest first than the trees. Also, remember that smaller logs would be for subtle changes in gene expression and we won't be really seeing changes, no it's not practical to check for changes at larger gene expression amount of data. 
+
+```{r}
+log2(40/10) ## here we can appreciate that a result of 2 means 4x (40) of the referred data (10). A log result of 1 would mean 2x increase related to the referred data (i.e control, it'd be like treated/control)
+```
+Let's calculate the log2 fold change and add it to our wee table `meancounts`
+```{r}
+meancounts$log2fc <- log2(meancounts$treated.mean/
+                        meancounts$control.mean)
+
+head(meancounts)
+```
+
+In the log2fc column from the results above, we can observe the magnitude of the changes, i.e 0.6, it's slightly up, but -2 would be twice the change down.
+
+
+Here we're pulling out the 2 columns and asking to tell us where are "0" values
+```{r, echo=FALSE, results='hide'}
+meancounts[,1:2] == 0
+```
+
+With this Boolean result now, we can do math.
+
+```{r}
+to.rm <- rowSums(meancounts[,1:2] == 0) > 0
+
+mycounts <- meancounts[to.rm,]
+
+```
+Filter out all genes 
+```{r}
+
+to.rm <- rowSums(meancounts[,1:2] == 0) > 0
+mycounts <- meancounts[!to.rm,] ## to flip it
+```
+
+```{r}
+nrow(mycounts)
+```
+
+> Q. How many "down" genes do we have at the common log2 fold change value of -2...
+
+```{r}
+##down.ind <- mycounts$log2fc < (-2)
+##head(down.ind)
+sum(mycounts$log2fc < -2)
+```
+
+>Q. How many "up" at log2FC > +2 
+
+```{r}
+sum(mycounts$log2fc < 2)
+```
+Do we trust these results? Is there anything missing? A:We're missing the stats  - P-value 
+
+## DESeq analysis
+```{r}
+##message: false
+library(DESeq2)
+```
+DESeq, like many BioConductor packages, wants our input data in a very specific format.
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts, 
+                       colData = metadata, 
+                        design = ~dex)
+```
+
+The main function of DESeq is called `DESeq`
+```{r}
+dds <- DESeq(dds)
+```
+
+```{r}
+res  <- results(dds)
+```
+
+```{r}
+head(res)
+```
+
+Next figure is the volcano plot logFoldChange in the x axis and Pvalue in y axis - logFC vs P-value. We would look at the gene expressed farther away to the top 
+
+```{r}
+plot(res$log2FoldChange, -log(res$padj)) ## We nee to transform the data with "log"
+abline(v=c (-2,2), col="gray") ## v= vertical line
+abline (h=-log(0.005), col="gray") ## for alpha level 
+```
+
+```{r}
+log(0.005)
+log(0.000000005) ## this is what we would look for, greatest changes
+```
+
+```{r}
+mycols <- rep("gray", nrow(res))
+mycols [res$log2FoldChange > 2] <- "red"
+mycols [res$log2FoldChange > -2] <- "red"
+mycols [res$padj > 0.005] <- "gray" ## how many above this 
+
+plot(res$log2FoldChange, -log(res$padj), col=mycols) 
+abline(v=c (-2,2), col="gray")
+abline (h=-log(0.005), col="gray")
+```
+
+```{r}
+write.csv(res, file = "myresults.csv")
+```
+
+## Gene annotation 
+
+```{r}
+head(res)
+```
+
+```{r}
+library("AnnotationDbi") ## bioconductor package
+library("org.Hs.eg.db") ## human
+
+##to install:
+##BiocManager::install("AnnotationDbi") and BiocManager::install("org.Hs.eg.db")
+
+```
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="SYMBOL",          # The new format we want to add
+                     multiVals="first")
+
+## remeber, $ here is to make a new column
+```
+
+```{r}
+head(res)
+```
+
+
+## Path analysis
+
+```{r}
+##BiocManager::install( c("pathview", "gage", "gageData") )
+```
+
+A quick KEGG pathway analysis in the gage 
+```{r}
+library(pathview)
+library(gage)
+library(gageData)
+data(kegg.sets.hs)
+
+# Examine the first 2 pathways in this kegg set for humans
+head(kegg.sets.hs, 2)
+```
+
+I need to speak ENTREZID so I can check KEGG pathway overlap as KEGG uses ENTREZ format IDs
+```{r}
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), 
+                     keytype="ENSEMBL",       
+                     column="ENTREZID",         
+                     multiVals="first")
+```
+
+I. can now use the **gage** fucntion to check for overlap with known KEGG pathways
+
+```{r}
+foldchanges <- res$log2FoldChange
+names(foldchanges) <- res$entrez
+head(foldchanges)
+```
+
+```{r}
+# Get the results
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+```{r}
+attributes(keggres)
+```
+
+```{r}
+head(keggres$less, 3)
+```
+
+Passing hsa05310
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa05310")
+```
+
+![A path figure](hsa05310.pathview.png)

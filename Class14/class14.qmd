@@ -1,0 +1,234 @@
+---
+title: "Class14 RNASeq Mini-Project"
+author: "Vanesa Fernandez"
+format: pdf
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+```{r}
+#/ message: false
+library(DESeq2)
+```
+
+
+## Import Data
+We need two "Counts" and "Metadata" (what DESeq calls colData - as it describes the columns in COUNTS)
+
+```{r}
+counts <- read.csv("GSE37704_featurecounts.csv", row.names=1)
+
+metadata <- read.csv("GSE37704_metadata.csv")
+```
+
+Start with a wee peak
+```{r}
+head(counts)
+```
+
+We want the column in `counts` to match the rows in the `metadata`
+
+```{r}
+colnames(counts)
+```
+
+```{r}
+metadata$id
+```
+We can get of rid of the first column in `counts` to make these match
+```{r}
+countData <- counts[,-1]
+head(countData)
+```
+
+```{r}
+colnames(countData) == metadata$id
+```
+
+```{r}
+## Are all these True?
+all(c(T,T,T,T))
+##and we can add it to the line above. Example:
+##all(colnames(countData) == metadata$id)
+## TRUE
+```
+
+## Data CleanUp 
+
+### Filter out zero counts
+It is standard practice to remove any genes/transcripts we have no data for - i.e. zero counts in all columns. How do we do this? --> to.keep.inds function
+
+```{r}
+to.keep.inds <- rowSums(countData) > 0
+cleanCounts <- countData[to.keep.inds,]
+head(cleanCounts)
+```
+
+## Setup for DESeq
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = cleanCounts,
+                      colData = metadata,
+                      design = ~condition) 
+```
+
+##DESeq
+```{r}
+dds <- DESeq(dds)
+res <- results (dds)
+```
+
+##Inspect Results
+```{r}
+head(res)
+```
+
+```{r}
+tail(cleanCounts)
+```
+
+## Data Viz
+```{r}
+plot(res$log2FoldChange, - log(res$padj))
+```
+
+## Pathway Analysis
+
+##Annotattion of genes
+1st translate Ensemble IDs in `res` object to Entrez and gen symbol formats
+
+```{r}
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+```
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+Let's map "SYMBOL", "ENTREZID", "GENENAME" from our "ENSEMBL" ids
+
+```{r}
+##book-keeping
+res$genename <- mapIds(org.Hs.eg.db, 
+                 keys= rownames(res),
+                 keytype = "ENSEMBL",
+                 column = "GENENAME")
+
+res$symbol <- mapIds(org.Hs.eg.db, 
+                 keys= rownames(res),
+                 keytype = "ENSEMBL",
+                 column = "SYMBOL")
+                 
+res$entrez <- mapIds(org.Hs.eg.db, 
+                 keys= rownames(res),
+                 keytype = "ENSEMBL",
+                 column = "ENTREZID")
+                 
+head(res)
+```
+
+
+Before moving on, let's focus in on a subset of "top" hits 
+We can use as a starting point log2FC of +2/-2 and adjusted p-value of less than 0.05. This is a way to start nailing down the data. 
+```{r}
+top.inds <- (abs(res$log2FoldChange) > 2) & (res$padj < 0.05)
+top.inds[is.na(top.inds)] <- FALSE 
+```
+
+Let's save our top genes to a CSV file...
+
+```{r}
+top.genes <- res[top.inds,]
+write.csv(top.genes, file = "top_geneset.csv")
+```
+
+Now we can do some pathway analysis
+
+```{r}
+library(gage)
+library(gageData)
+library(pathview)
+
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+```
+
+
+```{r}
+# Focus on signaling and metabolic pathways only
+kegg.sets.hs = kegg.sets.hs[sigmet.idx.hs]
+```
+
+The **gage** function wants a vector of importance as input with gene names as labels - KEGG speaks Entrez
+```{r}
+foldchanges <- res$log2FoldChange
+names(foldchanges) <- res$entrez
+head(foldchanges)
+```
+
+```{r}
+keggres <- gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+```{r}
+attributes(keggres)
+```
+Different KEGG pathways overlapping
+
+```{r}
+head(keggres$less)
+```
+
+hsa04110 Cell cycle 
+```{r}
+pathview(foldchanges, pathway.id = "hsa04110")
+```
+
+
+GO 
+Gene Ontology 
+
+```{r}
+data(go.sets.hs)
+data(go.subs.hs)
+
+# Focus on Biological Process subset of GO
+gobpsets = go.sets.hs[go.subs.hs$BP]
+
+gores <- gage(foldchanges, gsets=gobpsets)
+```
+
+```{r}
+head(gores$less)
+```
+
+Reactome Analysis -- building a website-like for better vis of results and even has been used in papers. ##https://reactome.org/user/guide
+
+To run it online, we need to make a text file with a gene id per line
+
+```{r}
+sig_genes <- res[res$padj <= 0.05 & !is.na(res$padj), "symbol"]
+print(paste("Total number of significant genes:", length(sig_genes)))
+```
+
+```{r}
+invisible(sig_genes)
+
+```
+
+
+```{r}
+write.table(sig_genes, file="significant_genes.txt",
+            row.names=FALSE,
+            col.names=FALSE,
+            quote=FALSE)
+```
+
+
+Now we can take now the generated ("significant_genes.txt") file and upload it to: https://reactome.org/PathwayBrowser/#TOOL=AT)
+
+![Taken from reactome, this is Mitotic Phase of my gene expression](R-HSA-68886.jpg)
+
+![Here, we can visualize the mitotic pathway in a tree way to visualize the gene intereaction. This is coming from our data ](R-HSA-2555396.jpg)
