@@ -1,7 +1,7 @@
 ---
 title: "Class 11"
 author: "Vanesa Fernandez"
-format: pdf
+format: gfm
 ---
 
 Today, before delving into structure prediction with AlfaFold we will finish off our previous lab10 "comparative structure analysis" section.
