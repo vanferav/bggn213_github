@@ -1,0 +1,23 @@
+---
+title: "class04"
+author: Vanesa Fernandez
+format: html
+---
+
+```{r}
+#My first Rscript
+x <- 1:50
+plot(x)
+
+```
+
+```{r}
+plot(x, sin(x), type = "l", col="blue")
+```
+```{r}
+plot(x=x, y=sin(x), type = "l", col="red", typ="l", lwd=3)
+```
+```{r}
+log(10,base=2)
+```
+
